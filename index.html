@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>海外からの輸入品目 タイムアタック！</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 50%, #fecdd3 100%);
+            min-height: 100vh;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation; /* iPhoneでのダブルタップズーム防止 */
+        }
+
+        .kiwi-font {
+            font-family: 'Kiwi Maru', serif;
+        }
+
+        /* Drum Picker Styling (iOS Safari Optimized) */
+        .picker-container {
+            position: relative;
+            height: 150px;
+            overflow: hidden;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.06);
+            border: 2px solid #fecdd3;
+        }
+        .picker-selection-overlay {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(225, 29, 72, 0.12);
+            border-top: 2px solid #e11d48;
+            border-bottom: 2px solid #e11d48;
+            pointer-events: none;
+        }
+        .picker-list {
+            scroll-snap-type: y mandatory;
+            overflow-y: scroll;
+            height: 100%;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            -webkit-overflow-scrolling: touch; /* iOSスワイプ最適化 */
+            padding-top: 50px;
+            padding-bottom: 50px;
+        }
+        .picker-list::-webkit-scrollbar {
+            display: none;
+        }
+        .picker-item {
+            height: 50px;
+            scroll-snap-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #9f1239;
+            transition: transform 0.1s ease, color 0.1s ease;
+            padding: 0 8px;
+            white-space: nowrap;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            70% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes partyShake {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(-10deg) scale(1.1); }
+            75% { transform: rotate(10deg) scale(1.1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        .animate-party {
+            animation: partyShake 0.4s ease-in-out infinite alternate;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #fda4af;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 text-white shadow-md p-3 sm:p-4 sticky top-0 z-40">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="kiwi-font text-base sm:text-xl md:text-2xl font-bold tracking-wide flex items-center gap-2 drop-shadow">
+                <span>🌎</span>
+                <span>輸入品目国名当て タイムアタック！</span>
+            </h1>
+            <button id="soundToggleBtn" onclick="toggleSound()" class="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-2 rounded-full w-10 h-10 flex items-center justify-center transition shadow">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-6 flex flex-col justify-between">
+
+        <!-- STEP 1: 設定画面 -->
+        <section id="setupView" class="space-y-6 my-auto py-2">
+            <div class="text-center space-y-2">
+                <span class="bg-red-100 text-red-800 text-xs sm:text-sm font-bold px-3 py-1 rounded-full border border-red-300">社会科 地理対策・貿易品目</span>
+                <h2 class="text-2xl sm:text-3xl font-black text-slate-800 kiwi-font">チャレンジ設定</h2>
+                <p class="text-xs sm:text-sm text-slate-600">制限時間内に何問正解できるかチャレンジしよう！</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- 制限時間選択（ドラム式） -->
+                <div class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm flex flex-col items-center justify-center space-y-3">
+                    <div class="text-center">
+                        <span class="text-xs font-bold text-red-500 uppercase tracking-wider">⏱ TIME LIMIT</span>
+                        <h3 class="text-lg font-bold text-slate-800">制限時間を選択</h3>
+                    </div>
+                    <div class="picker-container w-44">
+                        <div class="picker-selection-overlay"></div>
+                        <div id="timePickerList" class="picker-list"></div>
+                    </div>
+                </div>
+
+                <!-- 出題問題の選択 -->
+                <div class="bg-white p-5 rounded-3xl border-2 border-red-200 shadow-sm flex flex-col justify-between space-y-3">
+                    <div class="text-center">
+                        <span class="text-xs font-bold text-red-500 uppercase tracking-wider">🎯 QUESTION SCOPE</span>
+                        <h3 class="text-lg font-bold text-slate-800">出題範囲の選択</h3>
+                    </div>
+
+                    <!-- モード切り替えタブ -->
+                    <div class="grid grid-cols-2 gap-2 p-1 bg-rose-50 rounded-2xl border border-red-100">
+                        <button id="scopeBtnAll" onclick="switchScopeMode('all')" class="py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition">
+                            全19地域から
+                        </button>
+                        <button id="scopeBtnFilter" onclick="switchScopeMode('filter')" class="py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition">
+                            五十音順で指定
+                        </button>
+                    </div>
+
+                    <!-- エリア別ドラムピッカーパネル -->
+                    <div id="panelFilter" class="hidden pt-1">
+                        <p class="text-xs text-center text-slate-500 mb-2 font-bold">出題する範囲（開始 〜 終了）を選択：</p>
+                        <div class="flex items-center justify-center gap-1 sm:gap-2">
+                            <!-- 開始ドラム -->
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs font-bold text-red-600 mb-1">開始</span>
+                                <div class="picker-container w-36 sm:w-40">
+                                    <div class="picker-selection-overlay"></div>
+                                    <div id="filterStartPicker" class="picker-list"></div>
+                                </div>
+                            </div>
+
+                            <span class="text-red-400 font-bold text-base sm:text-lg mt-5">〜</span>
+
+                            <!-- 終了ドラム -->
+                            <div class="flex flex-col items-center">
+                                <span class="text-xs font-bold text-red-600 mb-1">終了</span>
+                                <div class="picker-container w-36 sm:w-40">
+                                    <div class="picker-selection-overlay"></div>
+                                    <div id="filterEndPicker" class="picker-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="panelAllInfo" class="text-center py-6 text-sm font-bold text-slate-600">
+                        19すべての国・都市・地域からランダムに出題されます。
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-black text-xl py-4 rounded-2xl shadow-lg hover:shadow-xl transition transform active:scale-98">
+                スタート！ 🚀
+            </button>
+        </section>
+
+        <!-- STEP 2: クイズ画面 -->
+        <section id="quizView" class="hidden flex-1 flex flex-col justify-between space-y-4">
+            <!-- 状況ステータスバー -->
+            <div class="flex flex-wrap items-center justify-between gap-2 bg-white px-4 py-3 rounded-2xl border-2 border-red-200 shadow-sm">
+                <div class="flex items-center gap-2">
+                    <button onclick="resetAndRestartCurrentSession()" class="text-red-600 hover:text-red-800 font-bold text-xs sm:text-sm flex items-center gap-1 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl border border-red-200 transition">
+                        <i class="fa-solid fa-rotate-left"></i> もう一度
+                    </button>
+                    <button onclick="confirmExit()" class="text-slate-500 hover:text-slate-800 font-bold text-xs sm:text-sm flex items-center gap-1 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 transition">
+                        <i class="fa-solid fa-house"></i> 設定に戻る
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-1.5 text-slate-700 font-black text-sm sm:text-base">
+                        <i class="fa-solid fa-stopwatch text-red-500"></i>
+                        <span id="timerDisplay" class="font-mono text-xl sm:text-2xl text-red-600">01:00</span>
+                    </div>
+                    <div class="bg-red-600 text-white font-black px-3 py-1 rounded-xl shadow-inner text-sm sm:text-base flex items-center gap-1">
+                        <span>正解数:</span>
+                        <span id="correctScoreCounter" class="text-xl">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 問題カード -->
+            <div class="bg-white rounded-3xl p-5 sm:p-6 border-2 border-red-200 shadow-md relative overflow-hidden flex flex-col items-center justify-center text-center min-h-[180px]">
+                <div class="absolute top-2 left-3 bg-red-100 text-red-800 text-xs font-bold px-3 py-0.5 rounded-full">
+                    主な輸入品目（1位〜6位）
+                </div>
+
+                <div id="ranksContainer" class="mt-4 flex flex-wrap justify-center items-center gap-2 text-sm sm:text-base font-black text-slate-800">
+                </div>
+
+                <div id="resultBanner" class="hidden mt-3 text-lg sm:text-xl font-black px-6 py-1.5 rounded-2xl animate-pop shadow-sm border-2">
+                </div>
+            </div>
+
+            <!-- 選択肢ボタンエリア -->
+            <div class="space-y-2">
+                <div class="flex justify-between items-center px-1">
+                    <span class="text-xs sm:text-sm font-bold text-slate-600">国・都市・地域名を当ててください：</span>
+                </div>
+
+                <div id="choicesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-[220px] sm:max-h-[260px] overflow-y-auto p-1 custom-scroll">
+                </div>
+            </div>
+
+            <div class="pt-2 border-t border-red-100 flex justify-end">
+                <button id="nextBtn" onclick="nextQuestion()" disabled class="w-full sm:w-auto px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-2xl shadow transition text-base flex items-center justify-center gap-2 cursor-not-allowed">
+                    <span>次の問題へ</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- STEP 3: 終了・褒めアニメーション画面 -->
+        <section id="resultView" class="hidden space-y-6 my-auto text-center py-4">
+            <div class="bg-white p-6 sm:p-8 rounded-3xl border-4 border-red-400 shadow-2xl space-y-5 max-w-md mx-auto animate-pop relative overflow-hidden">
+                <div class="text-6xl sm:text-7xl animate-bounce">👏</div>
+                
+                <div class="space-y-1">
+                    <h2 class="text-3xl sm:text-4xl font-black text-red-600 kiwi-font tracking-wide drop-shadow-sm">
+                        がんばったね〜・終了
+                    </h2>
+                    <p class="text-slate-500 font-bold text-xs sm:text-sm">最後までよく集中してチャレンジしました！</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-red-50 to-rose-50 p-5 rounded-2xl border-2 border-red-200 space-y-1 shadow-inner">
+                    <div class="text-xs text-red-800 font-bold uppercase tracking-wider">正解した問題数</div>
+                    <div class="text-4xl sm:text-5xl font-black text-red-600">
+                        <span id="finalScore">0</span> <span class="text-2xl">問正解！</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 space-y-2">
+                    <button onclick="retryGame()" class="w-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-black text-lg py-3 rounded-2xl shadow-md transition transform active:scale-98">
+                        同じ設定でもう一度挑戦 🔄
+                    </button>
+                    <button onclick="showView('setupView')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm py-2.5 rounded-2xl transition">
+                        設定を変更する ⚙️
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- クラッカー・紙吹雪オーバーレイ -->
+    <div id="crackerOverlay" class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div id="crackerContainer" class="flex gap-6 sm:gap-12 justify-center items-center">
+        </div>
+    </div>
+
+    <script>
+        const COUNTRIES_DATA = [
+            { id: 1, name: "アメリカ合衆国", ranks: ["機械類", "医薬品", "輸送用機器（航空機類）", "液化石油ガス", "科学光学機器", "液化天然ガス"] },
+            { id: 2, name: "アラブ首長国連邦", ranks: ["原油", "石油製品", "アルミ・同合金", "液化天然ガス", "プラスチック", "白金くず"] },
+            { id: 3, name: "イギリス", ranks: ["機械類", "医薬品", "輸送用機器", "ウイスキー", "科学光学機器"] },
+            { id: 4, name: "インド", ranks: ["機械類", "有機化合物", "輸送用機器", "魚介類・同調製品", "ダイヤモンド", "アルミ・同合金"] },
+            { id: 5, name: "オーストラリア", ranks: ["石炭", "液化天然ガス", "鉄鉱石", "銅鉱", "肉類・同調製品", "アルミ・同合金"] },
+            { id: 6, name: "韓国", ranks: ["機械類", "石油製品", "鉄鋼", "プラスチック", "有機化合物", "化粧品・香料類"] },
+            { id: 7, name: "サウジアラビア", ranks: ["原油", "石油製品", "有機化合物", "銅くず", "アルミ・同合金", "プラスチック"] },
+            { id: 8, name: "シンガポール", ranks: ["機械類", "科学光学機器", "医薬品", "石油製品", "プラスチック"] },
+            { id: 9, name: "タイ", ranks: ["機械類", "輸送用機器", "肉類・同調製品", "プラスチック", "科学光学機器", "魚介類・同調製品"] },
+            { id: 10, name: "台湾", ranks: ["機械類", "プラスチック", "鉄鋼", "科学光学機器", "金属製品", "輸送用機器"] },
+            { id: 11, name: "中華人民共和国", ranks: ["機械類", "衣類・同附属品", "輸送用機器", "金属製品", "織物類", "家具"] },
+            { id: 12, name: "ドイツ", ranks: ["機械類", "輸送用機器", "医薬品", "科学光学機器", "有機化合物", "プラスチック"] },
+            { id: 13, name: "ブラジル", ranks: ["鉄鉱石", "肉類・同調製品", "とうもろこし", "コーヒー", "有機化合物", "アルミ・同合金"] },
+            { id: 14, name: "フランス", ranks: ["輸送用機器", "機械類", "バッグ類", "貴金属装身具類", "ワイン", "医薬品"] },
+            { id: 15, name: "ベトナム", ranks: ["機械類", "衣類・同附属品", "はき物", "魚介類・同調製品", "木製品", "織物類"] },
+            { id: 16, name: "香港", ranks: ["魚介類・同調製品", "機械類", "貴金属装身具類", "ダイヤモンド"] },
+            { id: 17, name: "マレーシア", ranks: ["液化天然ガス", "機械類", "植物性油脂", "木製品", "プラスチック"] },
+            { id: 18, name: "南アフリカ共和国", ranks: ["白金族の金属", "鉄鉱石", "石炭", "輸送用機器"] },
+            { id: 19, name: "ロシア", ranks: ["液化天然ガス", "魚介類・同調製品", "白金族の金属", "木材"] }
+        ];
+
+        let isSoundOn = true;
+        let audioCtx = null;
+
+        // iOS対応: ユーザー操作（タップ時）に安全にオーディオを初期化
+        function unlockAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) audioCtx = new AudioContext();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleSound() {
+            unlockAudio();
+            isSoundOn = !isSoundOn;
+            const icon = document.getElementById('soundIcon');
+            const btn = document.getElementById('soundToggleBtn');
+            if (isSoundOn) {
+                icon.className = 'fa-solid fa-volume-high text-lg';
+                btn.classList.remove('opacity-50');
+                playPopSound(600, 0.05);
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-lg';
+                btn.classList.add('opacity-50');
+            }
+        }
+
+        function playPopSound(freq = 520, duration = 0.08) {
+            if (!isSoundOn) return;
+            try {
+                unlockAudio();
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(freq * 1.4, audioCtx.currentTime + duration);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playCorrectSound() {
+            if (!isSoundOn) return;
+            try {
+                unlockAudio();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                [659.25, 880].forEach((freq, i) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.08);
+                    gain.gain.setValueAtTime(0.3, now + i * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + i * 0.08);
+                    osc.stop(now + i * 0.08 + 0.2);
+                });
+            } catch(e){}
+        }
+
+        function playIncorrectSound() {
+            if (!isSoundOn) return;
+            try {
+                unlockAudio();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(150, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.22);
+            } catch(e){}
+        }
+
+        function playFinishSound() {
+            if (!isSoundOn) return;
+            try {
+                unlockAudio();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                    gain.gain.setValueAtTime(0.3, now + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.12);
+                    osc.stop(now + idx * 0.12 + 0.3);
+                });
+            } catch(e){}
+        }
+
+        // State Variables
+        let selectedTimeMinutes = 1;
+        let selectedScopeMode = 'all';
+        let filterStartVal = 1;
+        let filterEndVal = 19;
+
+        let activeQuestionsPool = [];
+        let currentQuestionIdx = 0;
+        let correctAnswersCount = 0;
+        let timerInterval = null;
+        let remainingSeconds = 60;
+        let isAnswered = false;
+
+        function showView(viewId) {
+            ['setupView', 'quizView', 'resultView'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(viewId).classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        /* Generic Drum Picker Helper (iOS Event Listener Optimized) */
+        function createPicker(container, itemsList, onSelectCallback) {
+            container.innerHTML = '';
+            itemsList.forEach((item) => {
+                const el = document.createElement('div');
+                el.className = 'picker-item';
+                el.textContent = item.label;
+                el.dataset.value = item.value;
+                container.appendChild(el);
+            });
+
+            const handleScroll = () => {
+                const itemHeight = 50;
+                const scrollTop = container.scrollTop;
+                const selectedIdx = Math.round(scrollTop / itemHeight);
+                const itemElements = container.querySelectorAll('.picker-item');
+                
+                let selectedVal = itemsList[0].value;
+                itemElements.forEach((it, idx) => {
+                    if (idx === selectedIdx) {
+                        it.style.color = '#e11d48';
+                        it.style.transform = 'scale(1.15)';
+                        it.style.fontWeight = '900';
+                        selectedVal = parseInt(it.dataset.value) || it.dataset.value;
+                    } else {
+                        it.style.color = '#9f1239';
+                        it.style.transform = 'scale(0.9)';
+                        it.style.fontWeight = '700';
+                    }
+                });
+                onSelectCallback(selectedVal);
+            };
+
+            // addEventListenerを使ってiOSでのイベントリスナーを安定化
+            container.removeEventListener('scroll', container._scrollHandler);
+            container._scrollHandler = handleScroll;
+            container.addEventListener('scroll', handleScroll, { passive: true });
+            return handleScroll;
+        }
+
+        function scrollToPickerValue(container, itemsList, val) {
+            const idx = itemsList.findIndex(item => item.value == val);
+            if (idx >= 0) {
+                container.scrollTop = idx * 50;
+            }
+        }
+
+        function initPickers() {
+            const timeItems = Array.from({length: 10}, (_, i) => ({
+                label: `${i + 1} 分`,
+                value: i + 1
+            }));
+            const timeContainer = document.getElementById('timePickerList');
+            const updateTime = createPicker(timeContainer, timeItems, (val) => {
+                selectedTimeMinutes = val;
+            });
+            scrollToPickerValue(timeContainer, timeItems, 1);
+            updateTime();
+
+            const countryItems = COUNTRIES_DATA.map(c => ({
+                label: c.name,
+                value: c.id
+            }));
+
+            const startContainer = document.getElementById('filterStartPicker');
+            const endContainer = document.getElementById('filterEndPicker');
+
+            filterStartVal = 1;
+            filterEndVal = 19;
+
+            const updateStart = createPicker(startContainer, countryItems, (val) => {
+                filterStartVal = val;
+                if (filterStartVal > filterEndVal) {
+                    filterEndVal = filterStartVal;
+                    scrollToPickerValue(endContainer, countryItems, filterEndVal);
+                }
+            });
+
+            const updateEnd = createPicker(endContainer, countryItems, (val) => {
+                filterEndVal = val;
+                if (filterEndVal < filterStartVal) {
+                    filterStartVal = filterEndVal;
+                    scrollToPickerValue(startContainer, countryItems, filterStartVal);
+                }
+            });
+
+            setTimeout(() => {
+                scrollToPickerValue(startContainer, countryItems, 1);
+                scrollToPickerValue(endContainer, countryItems, 19);
+                updateStart();
+                updateEnd();
+            }, 100);
+        }
+
+        function switchScopeMode(mode) {
+            selectedScopeMode = mode;
+            playPopSound(500, 0.04);
+
+            const btnAll = document.getElementById('scopeBtnAll');
+            const btnFilter = document.getElementById('scopeBtnFilter');
+            const panelAll = document.getElementById('panelAllInfo');
+            const panelFilter = document.getElementById('panelFilter');
+
+            if (mode === 'all') {
+                btnAll.className = "py-2 px-3 rounded-xl text-xs sm:text-sm font-black bg-white text-red-600 shadow-sm transition";
+                btnFilter.className = "py-2 px-3 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition";
+                panelAll.classList.remove('hidden');
+                panelFilter.classList.add('hidden');
+            } else {
+                btnFilter.className = "py-2 px-3 rounded-xl text-xs sm:text-sm font-black bg-white text-red-600 shadow-sm transition";
+                btnAll.className = "py-2 px-3 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition";
+                panelFilter.classList.remove('hidden');
+                panelAll.classList.add('hidden');
+            }
+        }
+
+        function shuffleArray(arr) {
+            const newArr = [...arr];
+            for (let i = newArr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+        }
+
+        function prepareQuestions() {
+            if (selectedScopeMode === 'all') {
+                activeQuestionsPool = shuffleArray(COUNTRIES_DATA);
+            } else {
+                const filtered = COUNTRIES_DATA.filter(c => c.id >= filterStartVal && c.id <= filterEndVal);
+                activeQuestionsPool = shuffleArray(filtered);
+            }
+            currentQuestionIdx = 0;
+        }
+
+        function startGame() {
+            unlockAudio();
+            prepareQuestions();
+            correctAnswersCount = 0;
+            document.getElementById('correctScoreCounter').textContent = correctAnswersCount;
+
+            remainingSeconds = selectedTimeMinutes * 60;
+            updateTimerDisplay();
+
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                remainingSeconds--;
+                updateTimerDisplay();
+                if (remainingSeconds <= 0) {
+                    finishGame();
+                }
+            }, 1000);
+
+            showView('quizView');
+            renderQuestion();
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(remainingSeconds / 60);
+            const s = remainingSeconds % 60;
+            const strM = String(m).padStart(2, '0');
+            const strS = String(s).padStart(2, '0');
+            document.getElementById('timerDisplay').textContent = `${strM}:${strS}`;
+        }
+
+        function renderQuestion() {
+            isAnswered = false;
+
+            if (currentQuestionIdx >= activeQuestionsPool.length) {
+                if (selectedScopeMode === 'filter') {
+                    finishGame();
+                    return;
+                } else {
+                    activeQuestionsPool = shuffleArray(COUNTRIES_DATA);
+                    currentQuestionIdx = 0;
+                }
+            }
+
+            const currentQ = activeQuestionsPool[currentQuestionIdx];
+
+            const banner = document.getElementById('resultBanner');
+            banner.className = 'hidden';
+            banner.textContent = '';
+
+            const nextBtn = document.getElementById('nextBtn');
+            nextBtn.disabled = true;
+            nextBtn.className = "w-full sm:w-auto px-8 py-3 bg-slate-200 text-slate-400 font-bold rounded-2xl transition cursor-not-allowed text-base flex items-center justify-center gap-2";
+
+            const ranksContainer = document.getElementById('ranksContainer');
+            ranksContainer.innerHTML = '';
+
+            const rankBadges = ["1位", "2位", "3位", "4位", "5位", "6位"];
+            const rankColors = [
+                "bg-red-600 text-white",
+                "bg-rose-500 text-white",
+                "bg-amber-500 text-white",
+                "bg-emerald-600 text-white",
+                "bg-blue-600 text-white",
+                "bg-purple-600 text-white"
+            ];
+
+            currentQ.ranks.forEach((item, idx) => {
+                const badge = document.createElement('div');
+                badge.className = "inline-flex items-center gap-1.5 bg-rose-50/80 border border-red-200 px-3 py-1.5 rounded-2xl shadow-sm";
+                badge.innerHTML = `
+                    <span class="text-xs font-black px-2 py-0.5 rounded-full ${rankColors[idx]}">${rankBadges[idx]}</span>
+                    <span class="text-slate-800 font-bold">${item}</span>
+                `;
+                ranksContainer.appendChild(badge);
+            });
+
+            const choicesGrid = document.getElementById('choicesGrid');
+            choicesGrid.innerHTML = '';
+
+            COUNTRIES_DATA.forEach(c => {
+                const btn = document.createElement('button');
+                btn.className = "choice-btn bg-white hover:bg-red-50 border-2 border-red-100 hover:border-red-400 text-slate-700 font-bold py-2.5 px-3 rounded-2xl shadow-sm transition text-center text-sm sm:text-base break-all flex items-center justify-center min-h-[48px]";
+                btn.textContent = c.name;
+                btn.onclick = () => handleAnswer(c, btn);
+                choicesGrid.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(selectedCountry, btnElement) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const currentQ = activeQuestionsPool[currentQuestionIdx];
+            const isCorrect = (selectedCountry.id === currentQ.id);
+            const banner = document.getElementById('resultBanner');
+
+            document.querySelectorAll('.choice-btn').forEach(b => {
+                b.classList.add('pointer-events-none');
+            });
+
+            if (isCorrect) {
+                correctAnswersCount++;
+                document.getElementById('correctScoreCounter').textContent = correctAnswersCount;
+                playCorrectSound();
+
+                btnElement.className = "choice-btn bg-emerald-500 text-white border-2 border-emerald-600 font-black py-2.5 px-3 rounded-2xl shadow-md text-center text-sm sm:text-base break-all flex items-center justify-center min-h-[48px] animate-pop";
+                
+                banner.textContent = "正解！ ⭕️";
+                banner.className = "mt-3 text-lg sm:text-xl font-black px-6 py-1 rounded-2xl animate-pop shadow-sm bg-emerald-100 text-emerald-700 border-emerald-300 block";
+            } else {
+                playIncorrectSound();
+
+                btnElement.className = "choice-btn bg-rose-100 text-rose-700 border-2 border-rose-300 font-bold py-2.5 px-3 rounded-2xl text-center text-sm sm:text-base break-all flex items-center justify-center min-h-[48px]";
+                
+                banner.textContent = `次の問題へ（正解は: ${currentQ.name}）`;
+                banner.className = "mt-3 text-sm sm:text-base font-bold px-5 py-1 rounded-2xl animate-pop shadow-sm bg-slate-100 text-slate-700 border-slate-300 block";
+            }
+
+            const nextBtn = document.getElementById('nextBtn');
+            nextBtn.disabled = false;
+            nextBtn.className = "w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-black rounded-2xl shadow-md transition transform active:scale-95 text-base flex items-center justify-center gap-2 cursor-pointer";
+
+            setTimeout(() => {
+                if (document.getElementById('quizView').classList.contains('hidden')) return;
+                nextQuestion();
+            }, 1000);
+        }
+
+        function nextQuestion() {
+            if (!isAnswered && remainingSeconds > 0) return;
+            playPopSound(700, 0.04);
+            currentQuestionIdx++;
+            renderQuestion();
+        }
+
+        function finishGame() {
+            if (timerInterval) clearInterval(timerInterval);
+
+            document.getElementById('finalScore').textContent = correctAnswersCount;
+
+            showView('resultView');
+            triggerEndingAnimation();
+        }
+
+        function triggerEndingAnimation() {
+            playFinishSound();
+
+            const overlay = document.getElementById('crackerOverlay');
+            const container = document.getElementById('crackerContainer');
+            container.innerHTML = `
+                <div class="flex flex-col items-center gap-2 animate-pop">
+                    <div class="text-8xl sm:text-9xl animate-bounce">🎉</div>
+                </div>
+            `;
+
+            overlay.classList.remove('hidden');
+
+            if (typeof confetti === 'function') {
+                const duration = 2.5 * 1000;
+                const end = Date.now() + duration;
+
+                (function frame() {
+                    confetti({
+                        particleCount: 6,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 }
+                    });
+                    confetti({
+                        particleCount: 6,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 }
+                    });
+
+                    if (Date.now() < end) {
+                        requestAnimationFrame(frame);
+                    }
+                })();
+            }
+
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 2500);
+        }
+
+        function retryGame() {
+            startGame();
+        }
+
+        function resetAndRestartCurrentSession() {
+            if (confirm("現在の設定のまま、最初からやり直しますか？")) {
+                if (timerInterval) clearInterval(timerInterval);
+                remainingSeconds = 0;
+                updateTimerDisplay();
+                startGame();
+            }
+        }
+
+        function confirmExit() {
+            if (confirm("チャレンジを終了して設定画面に戻りますか？")) {
+                if (timerInterval) clearInterval(timerInterval);
+                showView('setupView');
+            }
+        }
+
+        // iPhoneのタッチ開始時にオーディオ権限を解放
+        window.addEventListener('touchstart', unlockAudio, { once: true });
+        window.addEventListener('click', unlockAudio, { once: true });
+
+        window.onload = function() {
+            initPickers();
+            showView('setupView');
+        };
+    </script>
+</body>
+</html>
